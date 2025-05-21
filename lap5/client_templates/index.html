@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Client Truyền File An toàn</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f3f4f6;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+        }
+        .container {
+            background-color: #ffffff;
+            padding: 2.5rem;
+            border-radius: 1rem;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            width: 100%;
+            max-width: 600px;
+        }
+        .form-group label {
+            font-weight: 600;
+            color: #374151;
+            margin-bottom: 0.5rem;
+            display: block;
+        }
+        .form-control {
+            display: block;
+            width: 100%;
+            padding: 0.75rem 1rem;
+            font-size: 1rem;
+            line-height: 1.5;
+            color: #495057;
+            background-color: #fff;
+            background-clip: padding-box;
+            border: 1px solid #d1d5db;
+            border-radius: 0.5rem;
+            transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+        }
+        .form-control:focus {
+            border-color: #6366f1;
+            outline: 0;
+            box-shadow: 0 0 0 0.2rem rgba(99, 102, 241, 0.25);
+        }
+        .btn {
+            padding: 0.75rem 1.5rem;
+            font-size: 1rem;
+            font-weight: 600;
+            border-radius: 0.5rem;
+            cursor: pointer;
+            transition: background-color 0.15s ease-in-out, border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .btn-primary {
+            background-color: #6366f1;
+            color: #fff;
+            border: 1px solid #6366f1;
+        }
+        .btn-primary:hover {
+            background-color: #4f46e5;
+            border-color: #4f46e5;
+        }
+        .message {
+            padding: 1rem;
+            border-radius: 0.5rem;
+            margin-top: 1.5rem;
+            font-weight: 600;
+        }
+        .message.success {
+            background-color: #d1fae5;
+            color: #065f46;
+        }
+        .message.error {
+            background-color: #fee2e2;
+            color: #991b1b;
+        }
+        .loading-spinner {
+            border: 4px solid rgba(255, 255, 255, 0.3);
+            border-top: 4px solid #fff;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            animation: spin 1s linear infinite;
+            margin-right: 0.5rem;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body class="bg-gray-100">
+    <div class="container">
+        <h1 class="text-3xl font-bold text-center text-gray-800 mb-8">Client Truyền File An toàn (AES)</h1>
+        <p class="text-center text-gray-600 mb-6">
+            Địa chỉ web client: <code class="bg-gray-200 p-1 rounded">http://127.0.0.1:5001</code>
+        </p>
+
+        <form id="fileTransferForm" class="space-y-6">
+            <div class="form-group">
+                <label for="fileInput">Chọn file để gửi:</label>
+                <input type="file" id="fileInput" name="file" class="form-control-file" required>
+            </div>
+            <div class="form-group">
+                <label for="passwordInput">Nhập mật khẩu mã hóa:</label>
+                <input type="password" id="passwordInput" name="password" class="form-control" placeholder="Mật khẩu (độ dài tự do)" required>
+            </div>
+            <div class="form-group">
+                <label for="serverIpInput">Địa chỉ IP Server:</label>
+                <input type="text" id="serverIpInput" name="server_ip" class="form-control" value="127.0.0.1" required>
+            </div>
+            <div class="form-group">
+                <label for="serverPortInput">Cổng Server:</label>
+                <input type="number" id="serverPortInput" name="server_port" class="form-control" value="12345" required>
+            </div>
+            
+            <button type="submit" id="sendBtn" class="btn btn-primary w-full">
+                <span class="loading-spinner hidden"></span>
+                Gửi File
+            </button>
+        </form>
+
+        <div id="message" class="message hidden"></div>
+    </div>
+
+    <script>
+        const fileTransferForm = document.getElementById('fileTransferForm');
+        const fileInput = document.getElementById('fileInput');
+        const passwordInput = document.getElementById('passwordInput');
+        const serverIpInput = document.getElementById('serverIpInput');
+        const serverPortInput = document.getElementById('serverPortInput');
+        const sendBtn = document.getElementById('sendBtn');
+        const messageDiv = document.getElementById('message');
+        const spinner = sendBtn.querySelector('.loading-spinner');
+
+        function showMessage(msg, type) {
+            messageDiv.textContent = msg;
+            messageDiv.className = `message ${type}`;
+            messageDiv.classList.remove('hidden');
+        }
+
+        function hideMessage() {
+            messageDiv.classList.add('hidden');
+        }
+
+        function toggleSpinner(show) {
+            if (show) {
+                spinner.classList.remove('hidden');
+            } else {
+                spinner.classList.add('hidden');
+            }
+        }
+
+        fileTransferForm.addEventListener('submit', async (event) => {
+            event.preventDefault();
+
+            hideMessage();
+
+            const file = fileInput.files[0];
+            const password = passwordInput.value;
+            const serverIp = serverIpInput.value;
+            const serverPort = serverPortInput.value;
+
+            if (!file) {
+                showMessage('Vui lòng chọn một file để gửi.', 'error');
+                return;
+            }
+            if (!password) {
+                showMessage('Vui lòng nhập mật khẩu mã hóa.', 'error');
+                return;
+            }
+            if (!serverIp || !serverPort) {
+                showMessage('Vui lòng nhập địa chỉ IP và cổng của server.', 'error');
+                return;
+            }
+
+            sendBtn.disabled = true;
+            toggleSpinner(true);
+            showMessage('Đang gửi file...', 'info'); // Add an info message for sending
+
+            const formData = new FormData();
+            formData.append('file', file);
+            formData.append('password', password);
+            formData.append('server_ip', serverIp);
+            formData.append('server_port', serverPort);
+
+            try {
+                const response = await fetch('/send_file', {
+                    method: 'POST',
+                    body: formData,
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    showMessage(result.message, 'success');
+                } else {
+                    showMessage(`Lỗi: ${result.message}`, 'error');
+                }
+            } catch (error) {
+                console.error('Lỗi khi gửi yêu cầu:', error);
+                showMessage('Lỗi kết nối hoặc lỗi không mong muốn.', 'error');
+            } finally {
+                sendBtn.disabled = false;
+                toggleSpinner(false);
+            }
+        });
+    </script>
+</body>
+</html>
