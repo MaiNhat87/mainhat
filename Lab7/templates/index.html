@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>File Transfer App</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <h2>Upload File</h2>
+  <form action="/upload" method="post" enctype="multipart/form-data">
+    <input type="file" name="file" required><br>
+    <button type="submit">Upload</button>
+  </form>
+
+  <h3>Download received file:</h3>
+  <a href="/download">Download</a>
+</body>
+</html>
